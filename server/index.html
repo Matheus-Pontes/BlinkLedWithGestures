@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html" charset="utf-8" />
+  <title>Blink led With Esp8266 - FingerPose Example</title>
+
+  <!-- Require the peer dependencies of handpose. -->
+  <script src="https://unpkg.com/@tensorflow/tfjs-core@3.7.0/dist/tf-core.js"></script>
+
+  <!-- You must explicitly require a TF.js backend if you're not using the tfs union bundle. -->
+  <script src="https://unpkg.com/@tensorflow/tfjs-backend-webgl@3.7.0/dist/tf-backend-webgl.js"></script>
+
+  <!-- The main handpose library -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/hand-pose-detection@2.0.0/dist/hand-pose-detection.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915/hands.min.js"></script>
+
+  <!-- The fingerpose library -->
+  <script src="https://cdn.jsdelivr.net/npm/fingerpose@0.1.0/dist/fingerpose.min.js" type="text/javascript"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background-color: #212127;
+      color: #fefe;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      text-align: center;
+    }
+
+    .container {
+      margin: 20px auto;
+      display: flex;
+      justify-content: center;
+    }
+
+    #video-container {
+      width: 640px;
+      height: 480px;
+      position: relative;
+    }
+
+    .layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #pose-video {
+      transform: scaleX(-1);
+    }
+
+    .pose-result {
+      font-size: 100px;
+      text-align: right;
+      padding: 20px 30px 0 0;
+    }
+
+    #pose-result-left {
+      text-align: left;
+    }
+  </style>
+</head>
+
+<body>
+
+    <h1>Blink LED a partir de gestos - <span id="estadoLed">DESLIGADO</span></h1>
+    <div class="container">
+      <div class="video">
+        <div id="video-container">
+          <video id="pose-video" class="layer" playsinline></video>
+          <canvas id="pose-canvas" class="layer"></canvas>
+          <div id="pose-result-left" class="layer pose-result"></div>
+          <br>
+          <div id="pose-result-right" class="layer pose-result"></div>
+        </div>
+      </div>
+    </div>
+
+<script>
+    
+    const ws = new WebSocket("ws://localhost:3000");
+    const $estadoLed = document.querySelector("#estadoLed");
+    const body = document.getElementsByTagName('body');
+    
+    const { GestureDescription, Finger, FingerCurl, FingerDirection } = window.fp;
+
+    const rockGesture = new GestureDescription('rock'); // ✊️
+    const paperGesture = new GestureDescription('paper'); // 🖐
+
+    // Rock
+    // -----------------------------------------------------------------------------
+
+    // thumb: half curled
+    // accept no curl with a bit lower confidence
+    rockGesture.addCurl(Finger.Thumb, FingerCurl.HalfCurl, 1.0);
+    rockGesture.addCurl(Finger.Thumb, FingerCurl.NoCurl, 0.5);
+
+    // all other fingers: curled
+    for(let finger of [Finger.Index, Finger.Middle, Finger.Ring, Finger.Pinky]) {
+        rockGesture.addCurl(finger, FingerCurl.FullCurl, 1.0);
+        rockGesture.addCurl(finger, FingerCurl.HalfCurl, 0.9);
+    }
+
+    // Paper
+    // -----------------------------------------------------------------------------
+
+    // no finger should be curled
+    for(let finger of Finger.all) {
+        paperGesture.addCurl(finger, FingerCurl.NoCurl, 1.0);
+    }
+
+    const gestures = [
+      rockGesture, paperGesture
+    ];
+
+    const config = {
+      video: { width: 640, height: 480, fps: 30 }
+    }
+
+    const landmarkColors = {
+      thumb: 'red',
+      index: 'blue',
+      middle: 'yellow',
+      ring: 'green',
+      pinky: 'pink',
+      wrist: 'white'
+    }
+
+    const gestureStrings = {
+      'thumbs_up': '👍',
+      'victory': '✌🏻',
+      'rock': '✊️',
+      'paper': '🖐',
+      'scissors': '✌️',
+    }
+
+    async function createDetector() {
+      return window.handPoseDetection.createDetector(
+        window.handPoseDetection.SupportedModels.MediaPipeHands,
+        {
+          runtime: "mediapipe",
+          modelType: "full",
+          maxHands: 2,
+          solutionPath: `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1646424915`,
+        }
+      )
+    }
+
+    async function main() {
+
+      const video = document.querySelector("#pose-video")
+      const canvas = document.querySelector("#pose-canvas")
+      const ctx = canvas.getContext("2d")
+      const resultLayer = {
+        right: document.querySelector("#pose-result-right"),
+        left: document.querySelector("#pose-result-left")
+      }
+
+      // configure gesture estimator
+      // add "✌🏻" and "👍" as sample gestures
+      const knownGestures = [
+        ...gestures
+      ]
+      const GE = new fp.GestureEstimator(knownGestures)
+      // load handpose model
+      const detector = await createDetector()
+      console.log("mediaPose model loaded");
+      // main estimation loop
+      const estimateHands = async () => {
+
+        // clear canvas overlay
+        ctx.clearRect(0, 0, config.video.width, config.video.height);
+        resultLayer.right.innerText = '';
+        resultLayer.left.innerText = '';
+        
+        // get hand landmarks from video
+        const hands = await detector.estimateHands(video, {
+          flipHorizontal: true
+        })
+
+        for (const hand of hands) {
+          for (const keypoint of hand.keypoints) {
+            const name = keypoint.name.split('_')[0].toString().toLowerCase()
+            const color = landmarkColors[name]
+            drawPoint(ctx, keypoint.x, keypoint.y, 3, color)
+          }
+
+          const keypoints3D = hand.keypoints3D.map(keypoint => [keypoint.x, keypoint.y, keypoint.z])
+          const predictions = GE.estimate(keypoints3D, 9);
+
+          if (predictions.gestures.length > 0) {
+
+            let estadoLed = {
+                'rock': "0",
+                'paper': "1"
+            };
+
+            const result = predictions.gestures.reduce((p, c) => (p.score > c.score) ? p : c);
+            ws.send(estadoLed[result.name]);
+
+            $estadoLed.innerHTML = result.name == 'rock' ? "DESLIGADO": "LIGADO";
+            body[0].style.backgroundColor = result.name == 'rock' ? '#212127': '#169b5c';
+
+            const found = gestureStrings[result.name]
+            // find gesture with highest match score
+            const chosenHand = hand.handedness.toLowerCase();
+
+            if(found !== gestureStrings.dont) {
+                resultLayer[chosenHand].innerText = found;
+                continue;
+            }
+          }
+
+        }
+        // ...and so on
+        setTimeout(() => { estimateHands() }, 1000 / config.video.fps)
+      }
+
+      estimateHands()
+      console.log("Starting predictions")
+    }
+
+    async function initCamera(width, height, fps) {
+
+      const constraints = {
+        audio: false,
+        video: {
+          facingMode: "user",
+          width: width,
+          height: height,
+          frameRate: { max: fps }
+        }
+      }
+
+      const video = document.querySelector("#pose-video")
+      video.width = width
+      video.height = height
+
+      // get video stream
+      const stream = await navigator.mediaDevices.getUserMedia(constraints)
+      video.srcObject = stream
+
+      return new Promise(resolve => {
+        video.onloadedmetadata = () => { resolve(video) }
+      })
+    }
+
+    function drawPoint(ctx, x, y, r, color) {
+      ctx.beginPath()
+      ctx.arc(x, y, r, 0, 2 * Math.PI)
+      ctx.fillStyle = color
+      ctx.fill()
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+
+      initCamera(
+        config.video.width, config.video.height, config.video.fps
+      ).then(video => {
+        video.play()
+        video.addEventListener("loadeddata", event => {
+          console.log("Camera is ready")
+          main()
+        })
+      })
+
+      const canvas = document.querySelector("#pose-canvas")
+      canvas.width = config.video.width
+      canvas.height = config.video.height
+      console.log("Canvas initialized")
+    })
+</script>
+</body>
+</html>
