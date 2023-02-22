@@ -1,9 +1,9 @@
 #include <ArduinoWebsockets.h> // baixar lib e adicionar na idle do arduino
 #define led D2
 
-const char* ssid = "ZTE-Matheus Rafa";
-const char* pass = "matheusrafa";
-const char* IP = "192.168.1.6";
+const char* ssid = "********";
+const char* pass = "********";
+const char* IP = "*********";
 const int wsPort = 3000; // porta que vai se conectar ao websocket sendo igual no arquivo server/server.js
 
 using namespace websockets;
