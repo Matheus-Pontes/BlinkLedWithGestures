@@ -5,7 +5,7 @@
     - Desligar: Basta fechar a mão direita ou a esquerda as duas juntas ainda não funciona kkk
 
 ## Vídeo
-![Video]()
+- ![Video](/Video-blink-led-with-gestures2.gif)
 
 ## Para brincar
 - Clone o projeto
