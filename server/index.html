@@ -221,8 +221,11 @@
       // load handpose model
       const detector = await createDetector()
       
+      let numeroDeTentativas = 0;
+
       // main estimation loop
       const estimateHands = async () => {
+        numeroDeTentativas += 1;
 
         // clear canvas overlay
         ctx.clearRect(0, 0, config.video.width, config.video.height);
@@ -239,26 +242,12 @@
             const predictions = GE.estimate(keypoints3D, 9);
 
             if (predictions.gestures.length > 0) {
-
-              let estadoLed = {
-                'rock': "0",
-                'paper': "1"
-              };
-
               const result = predictions.gestures.reduce((p, c) => (p.score > c.score) ? p : c);
-              ws.send(estadoLed[result.name]);
 
-              if (result.name == 'rock') {
-                lampState.classList.remove('state-on');
-                lampState.classList.add('state-off');
-              }
-              else {
-                lampState.classList.add('state-on');
-                lampState.classList.remove('state-off');
-              }
+              if (result.name == 'rock') turnOffLed();
+              else turnOnLed();
 
-              const found = gestureStrings[result.name]
-              // find gesture with highest match score
+              const found = gestureStrings[result.name];
               const chosenHand = hand.handedness.toLowerCase();
 
               if(found !== gestureStrings.dont) {
@@ -268,17 +257,29 @@
             }
           }
 
-        setTimeout(() => { estimateHands() }, 1000 / config.video.fps);
-
-        if (hands.length == 0) {
-          lampState.classList.remove('state-on');
-          lampState.classList.add('state-off');
-
-          ws.send("0");
+        setTimeout(() => { 
+          estimateHands();
+        }, 1000 / config.video.fps);
+        
+        if (numeroDeTentativas == 150 && hands.length == 0) { 
+          turnOffLed();
+          numeroDeTentativas = 0; 
         }
       }
 
       estimateHands();
+    }
+
+    function turnOffLed() {
+      lampState.classList.remove('state-on');
+      lampState.classList.add('state-off');
+      ws.send("0"); 
+    }
+
+    function turnOnLed() {
+      lampState.classList.add('state-on');
+      lampState.classList.remove('state-off');
+      ws.send("1"); 
     }
 
     async function initCamera(width, height, fps) {
