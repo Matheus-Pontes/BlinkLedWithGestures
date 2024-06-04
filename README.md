@@ -1,4 +1,4 @@
-# BlinkLedWithGestures
+# Magic Glow
 - Ligar e desligar um led a partir de gestos das mãos em um site. 
 - Uma placa se conectara ao mesmo socket emitido pela página web 
 
@@ -6,6 +6,9 @@
 - Abrindo uma das mãos, vai ser enviado um sinal para a placa, e assim o led conectado será ligado. 
 - Fechando uma das mãos, vai ser enviado um sinal para a placa, e assim o led conectado será desligado. 
 - Se, você deixou o led ligado ele ficará ligado, por um tempo e será desligado automáticamente.
+
+## Tecnicamente
+- Temos o front-end/magic-glow e servidor que faz a comunicação entre o front-end e a placa ESP8266, por meio do sistema de comunicação WEBSOCKET.
 
 # Layout
 - [Figma](https://www.figma.com/design/TdetFT9IVp8JG6JoOVgbrh/TCC---PROJETO?node-id=0%3A1&t=rATlx3Um8LG6Ty1J-1)
@@ -28,8 +31,9 @@
 
 # Para se divertir
 - Clone o projeto
-- Rode o comando `npm install` na pasta `server` para as depências
-- Para subir a página HTML rode `node server/src/server.js`
+- Rode o comando `npm install` na pasta `magic-glow` e `magic-glow-server` para as depências
+- Para subir o front-end: `npm run dev`
+- Para subir o backend: `node server.js`
 - Coloque o código no ESP
     - Nele coloque os dados de sua rede
         - SSID 

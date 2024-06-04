@@ -1,0 +1,152 @@
+* 
+{
+  box-sizing: border-box;
+  user-select: none;
+  font-family: sans-serif;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  height: 100vh;
+  text-align: center;
+  background-color: #111;
+}
+
+.inform {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  color: #fefefe;
+}
+
+#video-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+.layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#pose-video {
+  transform: scaleX(-1);
+}
+
+.pose-result {
+  font-size: 100px;
+  text-align: right;
+  padding: 20px 30px 0 0;
+}
+
+#pose-result-left {
+  text-align: left;
+}
+
+.states {
+    position: absolute;
+    right: 14%;
+    top: 1%;
+    width: 300px;
+    padding: 12px 24px;
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+    background: #3333;
+    backdrop-filter: blur(50%);
+    border: 1px solid rgba( 229, 229, 229, 0.5 );
+    box-shadow: 0 0 12px rgba( 229, 229, 229, 0.5 );
+    color: #fefefe;
+
+    border-bottom-left-radius: 24px;
+    font-size: 32px;
+}
+
+.states > div {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.state {
+    width: 64px;
+    height: 64px;
+    background-color: #ddd;
+    border-radius: 50%;
+}
+
+.state-off {
+  background-color: #DC2626 !important;
+  border: 1px solid #F87171 !important;
+  box-shadow: 0 0 16px #B91C1C !important;
+}
+
+.state-on {
+  background-color: #22C55E !important;
+  border: 1px solid #15803D !important;
+  box-shadow: 0 0 16px #22C55E !important;
+}
+
+.pop-up {
+  position: absolute;
+  z-index: 10;
+  background-color: #111;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 10%;
+  max-width: 800px;
+  border: 1px solid #666;
+  border-radius: 12px;
+  padding: 8px;
+  color: #fff;
+
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  display: none;
+}
+
+.pop-up i {
+  font-size: 32px;
+}
+
+.pop-up span {
+  font-size: 16px;
+  color: #fff;
+}
+
+.errorMessage {
+  display: flex;
+  box-shadow: 0 0 8px #FCA5A5 !important;
+  border-color: #F87171 !important;
+}
+
+.sucessMessage {
+  display: flex;
+  box-shadow: 0 0 8px #86EFAC !important;
+  border-color: #86EFAC !important;
+} 
+
+.ph.ph-x-circle {
+  color: #DC2626 !important;
+}
+
+.ph.ph-check-circle {
+  color: #22C55E;
+}
+
+.hidden {
+  display: none !important;
+}
