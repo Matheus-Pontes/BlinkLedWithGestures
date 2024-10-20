@@ -1,72 +1,72 @@
-#include <ArduinoWebsockets.h> // baixar lib e adicionar na idle do arduino
-#define led D2
+#include <ArduinoWebsockets.h> // Baixar a biblioteca e adicionar na IDE do Arduino
+#include <ESP8266WiFi.h> // Biblioteca para conexão WiFi no ESP8266
+#define LED_PIN D2
 
-const char* ssid = "********";
-const char* pass = "********";
-const char* IP = "*********";
-const int wsPort = 3000; // porta que vai se conectar ao websocket sendo igual no arquivo server/server.js
+const char* ssid = "**********";
+const char* password = "***************";
+const char* serverIP = "*************";
+const int wsPort = 3000;
 
 using namespace websockets;
 
 WebsocketsClient client;
 
-void setup() {
-  // put your setup code here, to run once:
-
-  // Definindo buzzer como saída
-  pinMode(led, OUTPUT);
-
-  // Iniciando conexeção com o WIFI local  
-  Serial.begin(115200);
-
-  WiFi.begin(ssid, pass);
-
-  while(WiFi.status() != WL_CONNECTED) {
+void connectWiFi() {
+  Serial.print("Conectando ao WiFi...");
+  WiFi.begin(ssid, password);
+  
+  unsigned long startAttemptTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
     Serial.print(".");
     delay(500);
   }
 
-  Serial.println("Conectado ao WIFI!!!");
-
-  // Iniciando conexão ao websocket do NodeJs
-  // Sendo o ESP8266 como cliente
-  bool connected = client.connect(IP, wsPort, "/");
-
-  if(connected) {
-    Serial.println("Conectado ao server!");
-
-    // Enviando ao servidor que está conectado
-    client.send("Conectado ao server!");   
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nConectado ao WiFi!");
   } else {
-    Serial.println("Sem conexão!");
-    return;
+    Serial.println("\nFalha ao conectar ao WiFi.");
   }
+}
 
-  // Se está conectado, vai esperar receber a mensagem
-  client.onMessage([&](WebsocketsMessage message){
+void connectWebSocket() {
+  if (client.connect(serverIP, wsPort, "/")) {
+    Serial.println("Conectado ao servidor WebSocket!");
+    client.send("Conectado ao servidor!");
+  } else {
+    Serial.println("Falha na conexão com o WebSocket.");
+  }
+}
 
-    // Escreve mensagem recebida no Serial do arduino
-    Serial.print("Valor recebido: ");
-    Serial.println(message.data());
-   
-    if(message.data().equalsIgnoreCase("0")) {
-        digitalWrite(led, LOW);
-    } 
-    else if(message.data().equalsIgnoreCase("1")) {
-      digitalWrite(led, HIGH);
-    }
-  });
+void handleWebSocketMessage(WebsocketsMessage message) {
+  String msg = message.data();
+  int brightness = msg.toInt();
+
+  // Verifica se o valor está no intervalo de 1 a 100
+  if (brightness >= 1 && brightness <= 100) {
+    // Mapeia o valor de 1-100 para 0-1023 para o controle de PWM
+    int pwmValue = map(brightness, 1, 100, 0, 1023);
+    analogWrite(LED_PIN, pwmValue);
+    Serial.print("Luminosidade ajustada para: ");
+    Serial.println(pwmValue);
+  } else {
+    Serial.println("Valor fora do intervalo (1-100)");
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(LED_PIN, OUTPUT);
+  connectWiFi();
+  
+  if (WiFi.status() == WL_CONNECTED) {
+    connectWebSocket();
+    client.onMessage(handleWebSocketMessage);
+  }
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
-  // Avalia se recebeu a mensagem
-  if(client.available()) {
-
-    // captura a mensagem enviada que vai ser usada no setup()
+  if (client.available()) {
     client.poll();
-  } 
-
-  delay(1);
+  }
+  delay(100); // Intervalo de polling
 }

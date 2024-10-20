@@ -22,6 +22,7 @@ socket.onopen = () => {
     video.addEventListener("loadeddata", event => {
       cameraState.classList.remove('state-off');
       cameraState.classList.add('state-on');
+      popConexao.style = "opacity: 0;";
       main();
     })
   })
@@ -33,7 +34,7 @@ socket.onopen = () => {
 
 
 socket.onmessage = (event) => {
-  console.log(event.data);
+  
   if (event.data == "2") {
     let configSucess = configMessage.sucess();
 
@@ -111,6 +112,28 @@ async function createDetector() {
   )
 }
 
+// Função para converter os valores recebidos para a faixa de 1 a 100
+function converterParaEscalaDe1a100(x) {
+  // Valores de entrada (mínimo e máximo)
+  const entradaMin = 160;
+  const entradaMax = 520;
+
+  // Valores de saída (1 a 100)
+  const saidaMin = 1;
+  const saidaMax = 100;
+
+  // Mapeia o valor de x para a escala de 1 a 100
+  const resultado = mapearValor(x, entradaMin, entradaMax, saidaMin, saidaMax);
+
+  // Garante que o valor retornado esteja dentro dos limites de 1 a 100
+  return Math.min(Math.max(resultado, saidaMin), saidaMax);
+}
+
+function mapearValor(valor, inMin, inMax, outMin, outMax) {
+  // Mapeia o valor da faixa [inMin, inMax] para [outMin, outMax]
+  return ((valor - inMin) * (outMax - outMin)) / (inMax - inMin) + outMin;
+}
+
 async function main() {
 
   const video = document.querySelector("#pose-video")
@@ -147,14 +170,24 @@ async function main() {
     });
 
     for (const hand of hands) {
+        
         const keypoints3D = hand.keypoints3D.map(keypoint => [keypoint.x, keypoint.y, keypoint.z])
         const predictions = GE.estimate(keypoints3D, 9);
+       
+        const middleFinger = hand.keypoints[12]; // Ponta do dedo do meio
+        
+        // x - max - 520
+        // x - medium - 340
+        // x - min - 160
 
         if (predictions.gestures.length > 0) {
+        
           const result = predictions.gestures.reduce((p, c) => (p.score > c.score) ? p : c);
-
+          
+          const valorParaLigarLed = converterParaEscalaDe1a100(middleFinger.x).toFixed(0);
+          
           if (result.name == 'rock') turnOffLed();
-          else turnOnLed();
+          else turnOnLed(valorParaLigarLed);
 
           const found = gestureStrings[result.name];
           const chosenHand = hand.handedness.toLowerCase();
@@ -182,13 +215,13 @@ async function main() {
 function turnOffLed() {
   lampState.classList.remove('state-on');
   lampState.classList.add('state-off');
-  socket.send("0"); 
+  socket.send("1"); 
 }
 
-function turnOnLed() {
+function turnOnLed(value) {
   lampState.classList.add('state-on');
   lampState.classList.remove('state-off');
-  socket.send("1"); 
+  socket.send(value); 
 }
 
 async function initCamera(width, height, fps) {
